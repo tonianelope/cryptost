@@ -1,0 +1,23 @@
+{
+    "manifest_version": 2,
+    "name": "cryptost",
+    "version": "0.1",
+
+    "description": "encrypting some social media site",
+
+    "content_scripts": [
+        {
+            "matches": [
+                "http://twitter.com/*",
+                "https://twitter.com/*"
+            ],
+            "js": [
+                "cryptost.js"
+            ]
+
+        }
+    ]
+
+}
+
+   // "run_at": "document_end"

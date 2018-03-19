@@ -1,0 +1,6 @@
+{
+    "scripts": {
+        "start:firefox": "web-ext run",
+        "lint": "web-ext lint"
+    }
+}
