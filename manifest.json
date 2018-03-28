@@ -16,8 +16,13 @@
             ]
 
         }
+    ],
+    "web_accessible_resources": [
+        "jquery.min.js",
+        "cryptost.js"
     ]
+
 
 }
 
-   // "run_at": "document_end"
+
