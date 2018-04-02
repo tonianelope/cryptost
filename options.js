@@ -1,86 +1,78 @@
-console.log('INIT');
-
-var test = () => {
-    browser.storage.sync.set({ test: '123' }).then(() => {
-        browser.storage.sync.get('test').then(items => {
-            console.log(items);
-        });
-    });
-};
-
-test();
-
-
-
 const SESSKEY_SIZE = 16;
 const SESSKEY_ALGO = 'aes128';
 var USER = undefined;
 
+/** 
+ * Rerenders the users in the secure group
+ */
 var display_user_group = () => {
     var group_div = document.querySelector('.sec-group');
-    group_div.innerHTML = '';
+    group_div.innerHTML = ''; // empty dic
     console.log(group_div);
     browser.storage.sync.get({ users: {} }).then((items) => {
         var users = items.users;
         if (users[USER]) {
-            Object.keys(users[USER].group).forEach(function (key, index) {
+            // add sercure group mebmers
+            Object.keys(users[USER].group).forEach(function (user, index) {
                 var group_member = document.createElement('li');
-                group_member.innerText = key;
+                group_member.innerText = user;
                 group_div.appendChild(group_member);
             });
         }
     });
 };
 
+// generate a new session key
 var gen_sess_key = () => {
     var byteArray = new Uint8Array(SESSKEY_SIZE);
     window.crypto.getRandomValues(byteArray);
     return byteArray;
 };
 
+// generate new keys for a user and save them
 var key_gen = async () => {
-    console.log("KEY GEN");
     if (!USER) {
         alert('Log into twitter first!');
         return;
     }
 
     var passphrase = document.querySelector('#passphrase').value;
-    console.log(USER);
     if (passphrase) {
-        console.log(passphrase);
-        // gen new keys
+        // openpgp key gen options
         var options = {
             userIds: [{ username: USER }],
             numBits: 2048,
             passphrase: passphrase
         };
         const sessKey = gen_sess_key();
+        // generate RSA key pair
         openpgp.generateKey(options).then((keys) => {
             const lockedPrivateKey = keys.privateKeyArmored;
             const publicKey = keys.publicKeyArmored;
+            // encrypt session key with public key
             var opts = {
                 data: sessKey,
                 algorithm: SESSKEY_ALGO,
                 publicKeys: openpgp.key.readArmored(publicKey).keys
             };
-            console.log('keys generated');
             openpgp.encryptSessionKey(opts).then((lockedSessKey) => {
-                // SAVE KEYS
                 var keyObj = {
                     username: USER,
                     privateKey: lockedPrivateKey,
                     publicKey: publicKey,
+                    // sessionKey saved as byte array
                     sessionKey: lockedSessKey.message.packets.write(),
                     group: {
                         [USER]: lockedSessKey.message.packets.write()
                     }
                 };
-                console.log('sesskey generated');
+                // GET users sofar
                 browser.storage.sync.get({ users: {} }).then((items) => {
                     var users = items.users;
+                    // add new user
                     users[USER] = keyObj;
                     console.log('saving user');
+                    // SAVE updated user list + login new user
                     browser.storage.sync.set({ users: users }, login());
                 }).catch(error => {
                     console.log(error);
@@ -93,6 +85,9 @@ var key_gen = async () => {
     }
 };
 
+/**
+ * Add a new user to the group
+ */
 var add_to_group = () => {
     var add_user = document.querySelector('#member-username').value;
     if (!add_user) {
@@ -101,10 +96,10 @@ var add_to_group = () => {
     browser.storage.sync.get({ users: {} }).then(items => {
         var users = items.users;
         var member = users[add_user];
-        if (!member) {
+        if (!member) { // CHECK valid member
             return alert(`${add_user} is not registered with the extension`);
         } else {
-            // gen sess key for group member
+            // GET session key from current user
             var cur_user = items.users[USER];
             console.log(cur_user);
             var passphrase = prompt("Please enter your passphrase to add user:");
@@ -114,42 +109,44 @@ var add_to_group = () => {
             var privKey = openpgp.key.readArmored(cur_user.privateKey).keys[0];
             privKey.decrypt(passphrase);
 
-            // convert session key
+            // convert session key to openpgp message obj
             var saved_sessKey = cur_user.sessionKey;
             var to_list = [];
             for (let i = 0; i <= 270; i++) {
                 to_list.push(saved_sessKey[i]);
             }
-            console.log(to_list);
             var packs = new openpgp.packet.List();
             packs.read(Uint8Array.from(to_list));
             var sessionKeyMessage = new openpgp.message.Message(packs);
 
+            // decrypt session Key
             var options = {
                 message: sessionKeyMessage,
                 privateKeys: privKey,
             };
-
-
             openpgp.decryptSessionKeys(options).then((sessKeysList) => {
                 var encrypt_options = {
                     data: sessKeysList[0].data,
                     algorithm: sessKeysList[0].algorithm,
                     publicKeys: openpgp.key.readArmored(member.publicKey).keys
                 };
+                // ENCRYPT session Key with member publicKey
                 openpgp.encryptSessionKey(encrypt_options).then((enryptedSessKey) => {
                     users[USER].group[add_user] = enryptedSessKey.message.packets.write();
                     // SAVE NEW GROUP MEMBER
                     browser.storage.sync.set({ users: users }).then(() => {
+                        // update displayed group
                         display_user_group();
                     });
                 });
             });
         }
     });
-    return false;
 };
 
+/**
+ * Remove a user from the secret group
+ */
 var remove_from_group = () => {
     var rm_user = document.querySelector('#member-username').value;
     if (!rm_user) {
@@ -158,35 +155,49 @@ var remove_from_group = () => {
     browser.storage.sync.get({ users: {} }).then(items => {
         var users = items.users;
         delete users[USER].group[rm_user];
+        // Update saved users list
         browser.storage.sync.set({ users: users }).then(() => {
+            // update displayed group
             display_user_group();
         });
     });
 };
 
+/**
+ * Log the current user in 
+ * display their details
+ */
 var login = () => {
-    console.log('login');
+    // remove the signup elements
     var signups = document.querySelectorAll('.signup');
     signups.forEach((elem) => {
         elem.style.display = "none";
     });
+    // display loggenin data
     var loggedin = document.querySelectorAll('.loggedin');
     loggedin.forEach((elem) => {
         elem.style.display = "inline";
     });
     var login_msg = document.querySelector('.login');
     console.log(login_msg);
-    login_msg.innerText = `${USER} logged in`;
+    login_msg.innerText = `Hello, ${USER}`;
     display_user_group()
-    // TODO display user group
 };
 
+/**
+ * Promp user to signup
+ * 
+ */
 var signup = (error) => {
     console.log('signup');
     var signup_msg = document.querySelector('.twttr-login');
     signup_msg.innerText = `You will be registered as ${USER} `;
 };
 
+/**
+ * If registered log the user in, else prompt to signup
+ * @param username of user
+ */
 var try_login = (username) => {
     console.log(username);
     browser.storage.sync.get({ users: {} }).then(items => {
@@ -201,6 +212,9 @@ var try_login = (username) => {
     });
 };
 
+/**
+ * Check if user is logged in on twitter, try to log them in
+ */
 var check_user_loggedin = () => {
     browser.storage.local.get({ current_user: undefined }).then(items => {
         console.log(items);
@@ -211,6 +225,11 @@ var check_user_loggedin = () => {
     })
 };
 
+/**
+ * If new current_user is saved -> try to leg them in
+ * @param {*} changes the changes made to the storage
+ * @param {*} area the area the changes happend in
+ */
 var storage_change = (changes, area) => {
     console.log('Changes called');
     if (area == 'local') {
@@ -220,7 +239,6 @@ var storage_change = (changes, area) => {
             if (item == 'current_user') {
                 USER = changes[item].newValue;
                 try_login(changes[item].newValue);
-                //CURRENT_USER = changes[item].newValue;
             }
         }
     }
