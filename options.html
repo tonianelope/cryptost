@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Cryptost Options</title>
+    </head>
+    <style>
+        .loggedin {display: none;}
+    </style>
+
+    <body>
+        <h1>Cryptost Options</h1>
+        
+        <h2 class="signup">Create a new account</h2>
+        <form class="signup">
+            <p class="twttr-login">Login to twitter and then<p> 
+            set your encryption passphrase: <br>
+            <input id="passphrase" type="text">
+            <button id="key-gen" type="button">Generate new keys</button>
+        </form>
+
+        <h2 class="login loggedin" style="display: none"></h2>
+        
+        <h2 class="loggedin">Personal Keys</h2>
+        <div class="loggedin">
+            <p id="public-key" ></p>
+            <p id="private-key"></p>
+        </div>
+
+        <h2 class="loggedin">Session Key</h2>
+        <div class="loggedin">
+        <p id="session-key"></p>
+        <!-- <button id="gen-sess-key">Generate new session key</button> -->
+        </div>
+
+        <h2 class="loggedin">Secure group</h2>
+        <div class="sec-group loggedin"></div>
+        <form class="loggedin">
+            Twitter username: <br>
+            <input id="member-username" type="text"><br>
+            <!-- User public key: <br>
+            <input id="member-pubkey" type="text"><br> -->
+            <button id="group_add" type="button">Add member</button>
+            <button id="group_rm" type="button">Remove member</button>
+        </form>
+
+        <!-- add remove people (display??) -->
+        <script type="text/javascript" src="openpgp.min.js"></script>
+        <script src="options.js"></script>
+    </body>
+
+
+</html>

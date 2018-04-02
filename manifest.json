@@ -12,17 +12,28 @@
                 "https://twitter.com/*"
             ],
             "js": [
+                "openpgp.js",
                 "cryptost.js"
+
             ]
 
         }
     ],
-    "web_accessible_resources": [
-        "jquery.min.js",
-        "cryptost.js"
+
+    "applications": {
+        "gecko": {
+            "id": "cryptost@breakfast.com"
+        }
+    },
+
+    "options_ui":{
+        "page": "options.html"
+    },
+
+    "permissions": [
+        "storage"
     ]
-
-
+ 
 }
 
 
